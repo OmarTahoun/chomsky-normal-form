@@ -1,21 +1,9 @@
-#-------------------------------------------------------------------------------
-# Name:        Context-Free Grammar to Normal-Chomsky Form (CFG to NCF)
-# Purpose:     This script transforms a context-free grammar to Normal-Chomsky
-#              form, according to the book 'Elements of Theory of Computation'
-#              written by Lewis and Papadimitriou.
-#
-# Author:      Nikos Katirtzis (nikos912000)
-#
-# Created:     29/04/2014
-#-------------------------------------------------------------------------------
-
 from string import letters
 import copy
 import re
 
 # Remove large rules (more than 2 states in the right part, eg. A->BCD)
-def large(rules,let,voc):
-
+def remove_large(rules,let,voc):
     # Make a hard copy of the dictionary (as its size is changing over the
     # process)
     new_dict = copy.deepcopy(rules)
@@ -24,13 +12,15 @@ def large(rules,let,voc):
         for i in range(len(values)):
             # Check if we have a rule violation
             if len(values[i]) > 2:
+                # A -> BCD gives
+                #      1) A-> BE (if E is the first "free" letter from letters pool) and
+                #      2) E-> CD
 
-                # A -> BCD gives 1) A-> BE (if E is the first "free"
-                # letter from letters pool) and 2) E-> CD
-                for j in range(0, len(values[i]) - 2):
+                for j in range(len(values[i]) - 2):
                     # replace first rule
                     if j==0:
                         rules[key][i] = rules[key][i][0] + let[0]
+
                     # add new rules
                     else:
                         rules.setdefault(new_key, []).append(values[i][j] + let[0])
@@ -46,7 +36,7 @@ def large(rules,let,voc):
 
 
 # Remove empty rules (A->e)
-def empty(rules,voc):
+def remove_epsilon(rules,voc):
 
     # list with keys of empty rules
     e_list = []
@@ -61,17 +51,20 @@ def empty(rules,voc):
                 e_list.append(key)
                 # remove empty state
                 rules[key].remove(values[i])
+
         # if key doesn't contain any values, remove it from dictionary
         if len(rules[key]) == 0:
             if key not in rules:
                 voc.remove(key)
             rules.pop(key, None)
 
+
     # delete empty rules
     new_dict = copy.deepcopy(rules)
     for key in new_dict:
         values = new_dict[key]
         for i in range(len(values)):
+
             # check for rules in the form A->BC or A->CB, where B is in e_list
             # and C in vocabulary
             if len(values[i]) == 2:
@@ -79,6 +72,7 @@ def empty(rules,voc):
                 # gives A->A as a result)
                 if values[i][0] in e_list and key!=values[i][1]:
                     rules.setdefault(key, []).append(values[i][1])
+
                 # check for rule in the form A->CB, excluding the case that
                 # gives A->A as a result)
                 if values[i][1] in e_list and key!=values[i][0]:
@@ -88,7 +82,7 @@ def empty(rules,voc):
     return rules,voc
 
 # Remove short rules (A->B)
-def short(rules,voc):
+def remove_short(rules,voc):
 
     # create a dictionary in the form letter:letter (at the beginning
     # D(A) = {A})
@@ -108,11 +102,11 @@ def short(rules,voc):
                     if len(values[i]) == 1 and values[i] not in D[letter]:
                         D.setdefault(letter, []).append(values[i])
 
-    rules,D = short1(rules,D)
+    rules,D = remove_shorter(rules,D)
     return rules,D
 
 
-def short1(rules,D):
+def remove_shorter(rules,D):
 
     # remove short rules (with length in right side = 1)
     new_dict = copy.deepcopy(rules)
@@ -156,73 +150,3 @@ def print_rules(rules):
         for i in range(len(values)):
             print key + '->' + values[i]
     return 1
-
-
-def main():
-
-    rules = {}
-    voc = []
-    # This list's going to be our "letters pool" for naming new states
-    let = list(letters[26:]) + list(letters[:25])
-
-    let.remove('e')
-
-    # Number of grammar rules
-    while True:
-        userInput = raw_input('Give number of rules')
-        try:
-            # check if N is integer >=2
-            N = int(userInput)
-            if N <=2: print 'N must be a number >=2!'
-            else: break
-        except ValueError:
-            print "That's not an int!"
-
-    # Initial state
-    while True:
-        S = raw_input('Give initial state')
-        if not re.match("[a-zA-Z]*$", S): print 'Initial state must be a single \
-character!'
-        else:break
-
-    print '+------------------------------------------------------+'
-    print '|Give rules in the form A B (space-delimited), for A->B|'
-    print '|or A BCD, if more than one states in the right part   |'
-    print '|(without spaces between right part members).          |'
-    print '+------------------------------------------------------+'
-
-    for i in range(N):
-        # A rule is actually in the form fr->to. However, user gives fr to.
-        fr, to = map(str,raw_input('Rule #' + str(i + 1)).split())
-        # Remove given letters from "letters pool"
-        for l in fr:
-            if l!='e' and l not in voc: voc.append(l)
-            if l in let: let.remove(l)
-        for l in to:
-            if l!='e' and l not in voc: voc.append(l)
-            if l in let: let.remove(l)
-        # Insert rule to dictionary
-        rules.setdefault(fr, []).append(to)
-
-    # remove large rules and print new rules
-    print '\nRules after large rules removal'
-    rules,let,voc = large(rules,let,voc)
-    print_rules(rules)
-    #print voc
-
-    # remove empty rules and print new rules
-    print '\nRules after empty rules removal'
-    rules,voc = empty(rules,voc)
-    print_rules(rules)
-    #print voc
-
-    print '\nRules after short rules removal'
-    rules,D = short(rules,voc)
-    print_rules(rules)
-
-    print '\nFinal rules'
-    rules = final_rules(rules,D,S)
-    print_rules(rules)
-
-if __name__ == '__main__':
-    main()
