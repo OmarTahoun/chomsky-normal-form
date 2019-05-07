@@ -2,20 +2,32 @@ from string import letters
 import copy
 import re
 
-# Remove large rules (more than 2 states in the right part, eg. A->BCD)
-def remove_large(rules,let,voc):
-    # Make a hard copy of the dictionary (as its size is changing over the
-    # process)
-    new_dict = copy.deepcopy(rules)
-    for key in new_dict:
-        values = new_dict[key]
-        for i in range(len(values)):
-            # Check if we have a rule violation
-            if len(values[i]) > 2:
-                # A -> BCD gives
-                #      1) A-> BE (if E is the first "free" letter from letters pool) and
-                #      2) E-> CD
+# *******HEADER*******
+# This File contains the functions that construct the chomsky normal form
 
+# CNF is divided intwo 3 main steps which are:
+
+# 1) Removing the long rules (e.g. A->BCD will become  A -> ED where E -> BC)
+
+# 2) Removing the Epsilon Rules (e.g. A -> aaA | e Will become A -> aaA, A -> aa)
+
+# 3) Removing the short/useless rules (e.g. A -> B, B -> C will become A -> C)
+
+
+
+# 1) Removing the long rules (e.g. A->BCD will become  A -> ED where E -> BC)
+def remove_large(rules,let,voc):
+    """
+        A -> BCD gives
+          1) A-> BE (if E is the first "free" letter from letters pool) and
+          2) E-> CD
+    """
+
+    new_dict = copy.deepcopy(rules)         # Make a hard copy of the dictionary (as its size is changing over the process)
+    for key in new_dict:                 # For all the keys (non-terminal charachters)
+        values = new_dict[key]
+        for i in range(len(values)):    # Check the production rule of this key
+            if len(values[i]) > 2:      # Check if we have a rule violation (the length is more than 2)
                 for j in range(len(values[i]) - 2):
                     # replace first rule
                     if j==0:
@@ -35,25 +47,19 @@ def remove_large(rules,let,voc):
     return rules,let,voc
 
 
-# Remove empty rules (A->e)
+# 2) Removing the Epsilon Rules (e.g. A -> aaA | e Will become A -> aaA, A -> aa)
 def remove_epsilon(rules,voc):
+    e_list = []                         # list with keys of empty rules
+    new_dict = copy.deepcopy(rules)     # find  non-terminal rules and add them in list
 
-    # list with keys of empty rules
-    e_list = []
-
-    # find  non-terminal rules and add them in list
-    new_dict = copy.deepcopy(rules)
     for key in new_dict:
         values = new_dict[key]
         for i in range(len(values)):
-            # if key gives an empty state and is not in list, add it
-            if values[i] == 'e' and key not in e_list:
+            if values[i] == 'e' and key not in e_list:  # if key gives an empty state and is not in list, add it
                 e_list.append(key)
-                # remove empty state
-                rules[key].remove(values[i])
+                rules[key].remove(values[i])    # remove empty state
 
-        # if key doesn't contain any values, remove it from dictionary
-        if len(rules[key]) == 0:
+        if len(rules[key]) == 0:    # if key doesn't contain any values, remove it from dictionary
             if key not in rules:
                 voc.remove(key)
             rules.pop(key, None)
@@ -81,11 +87,10 @@ def remove_epsilon(rules,voc):
 
     return rules,voc
 
-# Remove short rules (A->B)
+# 3) Removing the short/useless rules (e.g. A -> B, B -> C will become A -> C)
 def remove_short(rules,voc):
 
-    # create a dictionary in the form letter:letter (at the beginning
-    # D(A) = {A})
+    # create a dictionary in the form letter:letter (at the beginning D(A) = {A})
     D = dict(zip(voc, voc))
 
     # just transform value from string to list, to be able to insert more values
@@ -106,8 +111,8 @@ def remove_short(rules,voc):
     return rules,D
 
 
+# Helper function for the remove_short function
 def remove_shorter(rules,D):
-
     # remove short rules (with length in right side = 1)
     new_dict = copy.deepcopy(rules)
     for key in new_dict:
@@ -133,8 +138,8 @@ def remove_shorter(rules,D):
 
 
 # Insert rules S->BC for every A->BC where A in D(S)-{S}
+# Finalize the vocabulary
 def final_rules(rules,D,S):
-
     for let in D[S]:
         # check if a key has no values
         if not rules[S] and not rules[let]:
